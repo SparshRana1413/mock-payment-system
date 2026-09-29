@@ -1,0 +1,231 @@
+syntax = "proto3";
+
+package payment.bank.v1;
+
+option go_package = "payment/bank/v1;bankv1";
+
+// -----------------------------------------------------------------------------
+// Bank Core Service
+// -----------------------------------------------------------------------------
+service BankService {
+  // Query current cleared and available balance
+  rpc GetBalance (GetBalanceRequest) returns (GetBalanceResponse);
+
+  // Two-Phase Commit / Auth-Capture Cycle
+  rpc Hold (HoldRequest) returns (HoldResponse);
+  rpc Capture (CaptureRequest) returns (CaptureResponse);
+  rpc Release (ReleaseRequest) returns (ReleaseResponse);
+
+  // Direct Settlement Operations
+  rpc Credit (CreditRequest) returns (CreditResponse);
+  rpc Reverse (ReverseRequest) returns (ReverseResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Common Types & Enums
+// -----------------------------------------------------------------------------
+
+enum TransactionStatus {
+  PENDING = 0;
+  HELD = 1;
+  CAPTURED = 2;
+  COMPLETED = 3;
+  REVERSED = 4;
+  FAILED = 5;
+}
+
+message Money {
+  // ISO 4217 currency code (e.g., "USD", "INR")
+  string currency = 1;
+
+  // Represented in atomic units (cents/paise) to prevent floating-point drift
+  int64 amount_in_units = 2;
+}
+
+// -----------------------------------------------------------------------------
+// 1. Get Balance
+// -----------------------------------------------------------------------------
+
+message GetBalanceRequest {
+  string account_id = 1;
+}
+
+message GetBalanceResponse {
+  string account_id = 1;
+
+  // Total amount currently held/reserved
+  Money held = 2;
+
+  // Funds immediately available for spending
+  // available = balance - held
+  Money available = 3;
+
+  // Total balance recorded on the bank's ledger
+  Money balance = 4;
+}
+
+// -----------------------------------------------------------------------------
+// 2. Hold (Authorize / Reserve Funds)
+// -----------------------------------------------------------------------------
+
+message HoldRequest {
+  // Used by the bank to deduplicate retried network calls
+  string idempotency_key = 1;
+
+  string account_id = 2;
+
+  Money amount = 3;
+
+  // Optional duration before the bank releases held funds automatically
+  int64 ttl_seconds = 4;
+
+  // Reference to the payment-system transaction
+  string transaction_reference = 5;
+}
+
+message HoldResponse {
+  string hold_id = 1;
+
+  // Bank's internal transaction ID
+  string transaction_id = 2;
+
+  TransactionStatus status = 3;
+
+  string account_id = 4;
+
+  Money balance = 5;
+
+  Money held = 6;
+
+  optional string error_message = 7;
+}
+
+// -----------------------------------------------------------------------------
+// 3. Capture (Settle Held Funds)
+// -----------------------------------------------------------------------------
+
+message CaptureRequest {
+  // Used by the bank to deduplicate retried network calls
+  string idempotency_key = 1;
+
+  string hold_id = 2;
+
+  // Enables partial captures
+  // 0 = capture the full remaining held amount
+  Money amount_to_capture = 3;
+}
+
+message CaptureResponse {
+  string hold_id = 1;
+
+  // Bank's transaction ID for the capture
+  string transaction_id = 2;
+
+  TransactionStatus status = 3;
+
+  string account_id = 4;
+
+  Money balance = 5;
+
+  Money captured_amount = 6;
+
+  optional string error_message = 7;
+}
+
+// -----------------------------------------------------------------------------
+// 4. Release (Void / Release Hold)
+// -----------------------------------------------------------------------------
+
+message ReleaseRequest {
+  // Used by the bank to deduplicate retried network calls
+  string idempotency_key = 1;
+
+  string hold_id = 2;
+
+  optional string reason = 3;
+}
+
+message ReleaseResponse {
+  string hold_id = 1;
+
+  // Bank's transaction ID for the release
+  string transaction_id = 2;
+
+  TransactionStatus status = 3;
+
+  string account_id = 4;
+
+  Money held = 5;
+
+  Money balance = 6;
+
+  optional string error_message = 7;
+}
+
+// -----------------------------------------------------------------------------
+// 5. Direct Credit (Pay In)
+// -----------------------------------------------------------------------------
+
+message CreditRequest {
+  // Used by the bank to deduplicate retried network calls
+  string idempotency_key = 1;
+
+  string destination_account_id = 2;
+
+  Money amount = 3;
+
+  // Reference to the payment-system transaction
+  string transaction_reference = 4;
+}
+
+message CreditResponse {
+  // Bank's transaction ID
+  string transaction_id = 1;
+
+  TransactionStatus status = 2;
+
+  string account_id = 3;
+
+  string bank_reference_number = 4;
+
+  optional string error_message = 5;
+}
+
+// -----------------------------------------------------------------------------
+// 6. Reverse (Refund / Rollback Settled Transaction)
+// -----------------------------------------------------------------------------
+
+message ReverseRequest {
+  // Used by the bank to deduplicate retried network calls
+  string idempotency_key = 1;
+
+  // The bank transaction ID returned during Capture/Credit
+  string transaction_id = 2;
+
+  // Supports partial reversals
+  Money amount_to_reverse = 3;
+
+  optional string reason = 4;
+}
+
+message ReverseResponse {
+  // Original bank transaction being reversed
+  string original_transaction_id = 1;
+
+  // New bank transaction representing the reversal
+  string reversal_transaction_id = 2;
+
+  TransactionStatus status = 3;
+
+  string account_id = 4;
+
+  string bank_reference_number = 5;
+
+  optional string error_message = 6;
+}
+
+
+// ===========================================================================================
+// Transaction
+// ===========================================================================================
+
