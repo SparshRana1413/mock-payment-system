@@ -48,3 +48,13 @@ application-prod.properties
 # Logs
 *.log
 logs/
+
+#AI
+AGENTS.md
+.gemini/
+.antigravity/
+antigravity-logs/
+*.antigravity.json
+walkthrough.md
+implementation-plan.md
+.agents/
