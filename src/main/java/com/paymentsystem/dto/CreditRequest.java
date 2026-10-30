@@ -4,27 +4,41 @@ import java.util.UUID;
 import com.paymentsystem.model.Money;
 
 /**
- * Request DTO for the bank's Credit RPC.
+ * Request DTO for the Mock Bank's Credit RPC operation.
  *
- * Ownership of the idempotency key: this class does NOT generate one.
- * The idempotency key represents "this specific attempt at this specific
- * bank operation," and that decision belongs to whichever service is
- * orchestrating retries (your future CreditService / saga step), not to
- * this DTO. If this class generated its own key in its constructor, then
- * every retry that rebuilds a CreditRequest would silently get a brand-new
- * key and defeat deduplication on the bank's side — which is the whole
- * point of having the key in the first place.
+ * <p><strong>Architectural Role:</strong>
+ * Integration / DTO layer. Encapsulates funds transfer instructions to credit money
+ * directly into a recipient's bank account.</p>
  *
- * So: the caller decides the key (typically derived from your own
- * TransactionId, e.g. "credit-step-of-<transactionId>"), and passes it in.
+ * <p><strong>Express.js / Node.js Analogy:</strong>
+ * Equivalent to a TypeScript DTO interface:
+ * {@code interface CreditRequest { idempotencyKey: string; destinationAccountId: string; amount: Money; transactionReference: string; }}.</p>
+ *
+ * <p><strong>Ownership of Idempotency Key:</strong>
+ * This class does NOT generate its own key. The idempotency key represents "this specific attempt
+ * at this specific bank operation," and that decision belongs to the service orchestrating retries.
+ * If this class generated its own key in the constructor, retrying with a new request object would
+ * silently bypass deduplication on the bank's side.</p>
+ *
+ * <p><strong>Responsibilities belonging elsewhere:</strong>
+ * Mapping to {@code payment.bank.v1.CreditRequest} Protobuf and gRPC stub calls belong in
+ * {@link com.paymentsystem.bank.BankClient}.</p>
  */
 public class CreditRequest {
 
     private final UUID idempotencyKey;
     private final UUID destinationAccountId;
     private final Money amount;
-    private final UUID transactionReference; // your Payment System's TransactionId, not the bank's
+    private final UUID transactionReference; // Payment System's TransactionId, not the bank's
 
+    /**
+     * Constructs a CreditRequest.
+     *
+     * @param idempotencyKey unique key guaranteeing exactly-once crediting execution
+     * @param destinationAccountId the target bank account receiving funds
+     * @param amount the exact monetary value and currency to credit
+     * @param transactionReference the Payment System's internal transaction ID
+     */
     public CreditRequest(UUID idempotencyKey, UUID destinationAccountId, Money amount, UUID transactionReference) {
         this.idempotencyKey = idempotencyKey;
         this.destinationAccountId = destinationAccountId;
