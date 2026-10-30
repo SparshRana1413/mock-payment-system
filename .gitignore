@@ -58,3 +58,5 @@ antigravity-logs/
 walkthrough.md
 implementation-plan.md
 .agents/
+.logs/
+.aiexclude
