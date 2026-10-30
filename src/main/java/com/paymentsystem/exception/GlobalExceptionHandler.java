@@ -1,7 +1,10 @@
 package com.paymentsystem.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -17,20 +20,62 @@ import java.util.Map;
  * <p><strong>Architectural Role:</strong>
  * Cross-cutting error handling layer. Intercepts exceptions before they escape to the servlet
  * container, preventing raw stack traces or internal server details from leaking to API clients.</p>
- *
- * <p><strong>Express.js / Node.js Analogy:</strong>
- * Directly analogous to Express's 4-argument error-handling middleware function:
- * {@code app.use((err, req, res, next) => { res.status(err.status || 500).json(...) })}.
- * In Spring, {@link RestControllerAdvice} registers this globally, and {@link ExceptionHandler}
- * routes specific exception types to targeted handler methods.</p>
- *
- * <p><strong>Component Interactions:</strong>
- * Catches exceptions thrown by controllers, service layers (e.g., {@link IllegalArgumentException}
- * from {@link com.paymentsystem.service.AuthService} or {@link com.paymentsystem.service.LoginService}),
- * and the Jakarta Validation framework ({@link MethodArgumentNotValidException}).</p>
  */
-@RestControllerAdvice // Combines @ControllerAdvice and @ResponseBody to automatically serialize handler return values into HTTP response bodies
+@RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * Handles bad credentials during authentication, returning an HTTP 401 Unauthorized status.
+     *
+     * @param ex the intercepted {@link BadCredentialsException}
+     * @return structured error response with status 401
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put("timestamp", Instant.now().toString());
+        errorBody.put("status", HttpStatus.UNAUTHORIZED.value());
+        errorBody.put("error", "Unauthorized");
+        errorBody.put("message", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody);
+    }
+
+    /**
+     * Handles authorization and access denial failures (e.g. non-admin accessing admin endpoint),
+     * returning an HTTP 403 Forbidden status.
+     *
+     * @param ex the intercepted {@link AccessDeniedException}
+     * @return structured error response with status 403
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put("timestamp", Instant.now().toString());
+        errorBody.put("status", HttpStatus.FORBIDDEN.value());
+        errorBody.put("error", "Forbidden");
+        errorBody.put("message", "Access denied: insufficient privileges");
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorBody);
+    }
+
+    /**
+     * Handles database constraint violations (e.g. concurrent duplicate registrations),
+     * returning an HTTP 409 Conflict status.
+     *
+     * @param ex the intercepted {@link DataIntegrityViolationException}
+     * @return structured error response with status 409
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put("timestamp", Instant.now().toString());
+        errorBody.put("status", HttpStatus.CONFLICT.value());
+        errorBody.put("error", "Conflict");
+        errorBody.put("message", "User with this username or email already exists");
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorBody);
+    }
 
     /**
      * Handles business rule violations and illegal argument states (e.g., duplicate username or email).
@@ -62,7 +107,6 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
-        // Collect field-specific error messages (analogous to parsing Joi or Zod validation errors)
         Map<String, String> fieldErrors = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error -> 
             fieldErrors.put(error.getField(), error.getDefaultMessage())
@@ -92,7 +136,6 @@ public class GlobalExceptionHandler {
         errorBody.put("timestamp", Instant.now().toString());
         errorBody.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
         errorBody.put("error", "Internal Server Error");
-        // Keeps internal server details hidden for security (defense in depth)
         errorBody.put("message", "An unexpected error occurred");
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorBody);

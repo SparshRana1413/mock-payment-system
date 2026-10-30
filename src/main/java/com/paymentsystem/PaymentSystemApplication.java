@@ -2,6 +2,7 @@ package com.paymentsystem;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 
 /**
  * Main application entry point for the Spring Boot Payment System.
@@ -17,11 +18,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * where you initialize {@code express()}, load environment variables (e.g. {@code dotenv}),
  * register global middleware, and invoke {@code app.listen(port)}.</p>
  *
- * <p><strong>Responsibilities belonging elsewhere:</strong>
- * Route definitions belong in {@code controller/}, business rules in {@code service/},
- * and security policy definitions in {@code config/SecurityConfig}.</p>
+ * <p><strong>Security Configuration:</strong>
+ * {@link UserDetailsServiceAutoConfiguration} is explicitly excluded because this service
+ * utilizes a purely stateless JWT architecture. Excluding it disables default in-memory user
+ * creation and stops Spring Boot from generating a temporary console password on startup.</p>
  */
-@SpringBootApplication // Combines @Configuration, @EnableAutoConfiguration, and @ComponentScan (auto-discovers beans in this package and sub-packages)
+@SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
 public class PaymentSystemApplication {
 
 	/**
@@ -30,7 +32,6 @@ public class PaymentSystemApplication {
 	 * @param args command-line arguments passed at process launch
 	 */
 	public static void main(String[] args) {
-		// Boots the Spring container, performs classpath scanning, and starts embedded Tomcat
 		SpringApplication.run(PaymentSystemApplication.class, args);
 	}
 

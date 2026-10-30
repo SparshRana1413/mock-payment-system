@@ -1,11 +1,10 @@
-
 package com.paymentsystem.service;
 
 import com.paymentsystem.dto.LoginRequest;
 import com.paymentsystem.model.User;
 import com.paymentsystem.repository.UserRepository;
-
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -31,44 +30,45 @@ import org.springframework.stereotype.Service;
 public class LoginService {
 
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     /**
-     * Constructs the login service with its repository dependency.
+     * Constructs the login service with its repository and password encoder dependencies.
      *
      * @param userRepository the JPA repository for user lookup
+     * @param passwordEncoder the Spring-managed password encoder bean
      */
-    public LoginService(UserRepository userRepository) {
+    public LoginService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
      * Validates user credentials against PostgreSQL records.
      *
-     * <p>Normalizes email input, queries the database, and uses BCrypt to verify the password.
-     * Uniformly throws {@link IllegalArgumentException} with "Invalid credentials" to prevent
-     * account enumeration timing or enumeration attacks.</p>
+     * <p>Normalizes email input, queries the database, and uses the configured {@link PasswordEncoder}
+     * to verify the password. Uniformly throws {@link BadCredentialsException} with "Invalid credentials"
+     * for unknown email, null inputs, or password mismatches to prevent account enumeration attacks.</p>
      *
      * @param request the login request payload containing email and password
      * @return the authenticated {@link User} entity
-     * @throws IllegalArgumentException if the user does not exist or the password does not match
+     * @throws BadCredentialsException if the user does not exist or the password does not match
      */
     public User login(LoginRequest request) {
+        if (request == null || request.email() == null || request.password() == null) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
 
         String email = request.email().trim().toLowerCase();
+        if (email.isEmpty() || request.password().isEmpty()) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
 
-        // Optional<User> is Java's type-safe wrapper for values that may be null (similar to User | null in TypeScript)
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() ->
-                new IllegalArgumentException("Invalid credentials")
-            );
+            .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-        // BCrypt matches() extracts the salt embedded in the stored hash and hashes the candidate to compare
-        if (!passwordEncoder.matches(
-                request.password(),
-                user.getPasswordHash())) {
-            throw new IllegalArgumentException("Invalid credentials");
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid credentials");
         }
 
         return user;

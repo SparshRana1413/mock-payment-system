@@ -12,15 +12,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
  * <p><strong>Express.js / Node.js Analogy:</strong>
  * Equivalent to a helper function wrapping {@code bcrypt.hash()} or {@code bcryptjs.hash()}
  * in Node.js (e.g. {@code export const hashPassword = (pw: string) => bcrypt.hash(pw, 10)}).</p>
- *
- * <p><strong>Responsibilities belonging elsewhere:</strong>
- * Password verification during authentication is handled by calling {@code matches()}
- * on a {@link BCryptPasswordEncoder} instance, as seen in {@link com.paymentsystem.service.LoginService}.</p>
  */
 public class PasswordUtil {
 
-    // Thread-safe BCrypt encoder instance with default strength (work factor of 10)
     private static final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
+    private PasswordUtil() {
+        // Prevent instantiation of utility class
+    }
 
     /**
      * Hashes a plain-text password using BCrypt with an automatically generated salt.
