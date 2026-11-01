@@ -31,5 +31,7 @@ public enum TransactionStatus {
     /** A previously captured or credited transaction has been undone. */
     REVERSED,
     /** Transaction aborted or failed at any step in the payment pipeline. */
-    FAILED
+    FAILED,
+    /** Fund hold expired before capture could settle the transaction. */
+    EXPIRED
 }

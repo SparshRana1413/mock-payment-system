@@ -56,6 +56,12 @@ public class Transaction {
     @Column(name = "credit_txn_id", length = 255)
     private String creditTxnId;
 
+    @Column(name = "failure_reason", length = 255)
+    private String failureReason;
+
+    @Column(name = "reversal_txn_id", length = 255)
+    private String reversalTxnId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -87,6 +93,8 @@ public class Transaction {
         this.holdId = b.holdId;
         this.captureTxnId = b.captureTxnId;
         this.creditTxnId = b.creditTxnId;
+        this.failureReason = b.failureReason;
+        this.reversalTxnId = b.reversalTxnId;
         this.createdAt = b.createdAt != null ? b.createdAt : Instant.now();
         this.expiresAt = b.expiresAt != null ? b.expiresAt : this.createdAt.plusSeconds(30);
         this.completedAt = b.completedAt;
@@ -143,6 +151,8 @@ public class Transaction {
         private String holdId;
         private String captureTxnId;
         private String creditTxnId;
+        private String failureReason;
+        private String reversalTxnId;
         private Instant createdAt;
         private Instant expiresAt;
         private Instant completedAt;
@@ -159,6 +169,8 @@ public class Transaction {
         public Builder holdId(String v) { this.holdId = v; return this; }
         public Builder captureTxnId(String v) { this.captureTxnId = v; return this; }
         public Builder creditTxnId(String v) { this.creditTxnId = v; return this; }
+        public Builder failureReason(String v) { this.failureReason = v; return this; }
+        public Builder reversalTxnId(String v) { this.reversalTxnId = v; return this; }
         public Builder createdAt(Instant v) { this.createdAt = v; return this; }
         public Builder expiresAt(Instant v) { this.expiresAt = v; return this; }
         public Builder completedAt(Instant v) { this.completedAt = v; return this; }
@@ -197,7 +209,7 @@ public class Transaction {
     public void markStatus(TransactionStatus newStatus) {
         this.status = newStatus;
         if (newStatus == TransactionStatus.COMPLETED || newStatus == TransactionStatus.REVERSED
-                || newStatus == TransactionStatus.FAILED) {
+                || newStatus == TransactionStatus.FAILED || newStatus == TransactionStatus.EXPIRED) {
             if (this.completedAt == null) {
                 this.completedAt = Instant.now();
             }
@@ -225,6 +237,8 @@ public class Transaction {
     public String getHoldId() { return holdId; }
     public String getCaptureTxnId() { return captureTxnId; }
     public String getCreditTxnId() { return creditTxnId; }
+    public String getFailureReason() { return failureReason; }
+    public String getReversalTxnId() { return reversalTxnId; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getExpiresAt() { return expiresAt; }
     public Instant getCompletedAt() { return completedAt; }
@@ -241,6 +255,8 @@ public class Transaction {
     public void setHoldId(String holdId) { this.holdId = holdId; }
     public void setCaptureTxnId(String captureTxnId) { this.captureTxnId = captureTxnId; }
     public void setCreditTxnId(String creditTxnId) { this.creditTxnId = creditTxnId; }
+    public void setFailureReason(String failureReason) { this.failureReason = failureReason; }
+    public void setReversalTxnId(String reversalTxnId) { this.reversalTxnId = reversalTxnId; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
     public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
